@@ -20,23 +20,23 @@ public class UserService {
     /**
      * GitHub 사용자 정보로 사용자를 저장하거나 업데이트
      */
-    public User saveOrUpdateUser(String githubId, String login, String name, String email,
-                                String avatarUrl, String htmlUrl, String company, 
-                                String location, String bio, String accessToken) {
+    public User saveOrUpdateUser(String githubId, String login, String name,
+                                String avatarUrl, String htmlUrl,
+                                String location, String accessToken) {
         
         Optional<User> existingUser = userRepository.findByGithubId(githubId);
         
         if (existingUser.isPresent()) {
             // 기존 사용자 정보 업데이트
             User user = existingUser.get();
-            user.updateUserInfo(name, email, avatarUrl, htmlUrl, company, location, bio);
+            user.updateUserInfo(name, avatarUrl, htmlUrl, location);
             user.updateAccessToken(accessToken);
             
             log.info("기존 사용자 정보 업데이트: {}", login);
             return userRepository.save(user);
         } else {
             // 새 사용자 생성
-            User newUser = new User(githubId, login, name, email, avatarUrl, htmlUrl, company, location, bio);
+            User newUser = new User(githubId, login, name, avatarUrl, htmlUrl, location);
             newUser.updateAccessToken(accessToken);
             
             log.info("새 사용자 생성: {}", login);
@@ -82,5 +82,11 @@ public class UserService {
     public void deleteUser(Long id) {
         userRepository.deleteById(id);
         log.info("사용자 삭제: ID {}", id);
+    }
+    /**
+     * 사용자 저장
+     */
+    public User saveUser(User user) {
+        return userRepository.save(user);
     }
 } 

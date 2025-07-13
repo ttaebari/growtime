@@ -6,12 +6,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -23,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
 import java.util.Map;
+import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
 @RequiredArgsConstructor
@@ -55,88 +54,74 @@ public class LoginController {
     }
 
     @GetMapping("/callback")
-    public ResponseEntity<?> handleCallback(@RequestParam(required = false) String code,
-                                          @RequestParam(required = false) String error) {
+    public void handleCallback(@RequestParam(required = false) String code,
+                              @RequestParam(required = false) String error,
+                              HttpServletResponse response) throws java.io.IOException {
+        log.info("GitHub 콜백 호출됨 - code: {}, error: {}", code, error);
         
         // OAuth 에러 처리
         if (error != null) {
             log.error("GitHub OAuth 에러: {}", error);
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", "GitHub 로그인에 실패했습니다: " + error);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            response.sendRedirect("http://localhost:3000/?error=" + error);
+            return;
         }
-
-        // 인증 코드 검증
         if (code == null || code.trim().isEmpty()) {
             log.error("인증 코드가 없습니다");
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", "인증 코드가 없습니다");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            response.sendRedirect("http://localhost:3000/?error=no_auth_code");
+            return;
         }
-
         try {
-            // 액세스 토큰 획득
+            log.info("액세스 토큰 요청 시작");
             String accessToken = getAccessToken(code);
             if (accessToken == null) {
-                log.error("액세스 토큰을 가져올 수 없습니다");
-                Map<String, String> errorResponse = new HashMap<>();
-                errorResponse.put("error", "액세스 토큰을 가져올 수 없습니다");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+                log.error("액세스 토큰을 받지 못했습니다");
+                response.sendRedirect("http://localhost:3000/?error=no_token");
+                return;
             }
-
-            // 사용자 정보 획득
+            log.info("액세스 토큰 획득 성공");
+            
+            log.info("사용자 정보 요청 시작");
             GitHubUserInfo userInfo = getUserInfo(accessToken);
             if (userInfo == null) {
-                log.error("사용자 정보를 가져올 수 없습니다");
-                Map<String, String> errorResponse = new HashMap<>();
-                errorResponse.put("error", "사용자 정보를 가져올 수 없습니다");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+                log.error("사용자 정보를 받지 못했습니다");
+                response.sendRedirect("http://localhost:3000/?error=no_user_info");
+                return;
             }
-
+            log.info("사용자 정보 획득 성공: {}", userInfo.getLogin());
             // 사용자 정보를 데이터베이스에 저장 또는 업데이트
+            log.info("사용자 정보 저장 시작");
             User savedUser = userService.saveOrUpdateUser(
                 userInfo.getId().toString(),
                 userInfo.getLogin(),
                 userInfo.getName(),
-                userInfo.getEmail(),
                 userInfo.getAvatarUrl(),
                 userInfo.getHtmlUrl(),
-                userInfo.getCompany(),
                 userInfo.getLocation(),
-                userInfo.getBio(),
                 accessToken
             );
-
-            // 성공 응답
-            Map<String, Object> successResponse = new HashMap<>();
-            successResponse.put("message", "GitHub 로그인 성공");
-            successResponse.put("user", createUserResponse(savedUser));
-            successResponse.put("accessToken", accessToken); // 실제로는 JWT 토큰을 발급해야 함
+            log.info("사용자 정보 저장 완료: {}", savedUser.getGithubId());
             
-            log.info("GitHub 로그인 성공: {} (ID: {})", userInfo.getLogin(), savedUser.getId());
-            return ResponseEntity.ok(successResponse);
-
-        } catch (RestClientException e) {
-            log.error("GitHub API 호출 중 에러 발생", e);
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", "GitHub API 호출 중 에러가 발생했습니다");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            // 프론트엔드 메인페이지로 리다이렉트
+            String redirectUrl = "http://localhost:3000/main?githubId=" + savedUser.getGithubId();
+            log.info("리다이렉트 URL: {}", redirectUrl);
+            response.sendRedirect(redirectUrl);
         } catch (Exception e) {
-            log.error("로그인 처리 중 예상치 못한 에러 발생", e);
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", "로그인 처리 중 에러가 발생했습니다");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            log.error("콜백 처리 중 예외 발생", e);
+            response.sendRedirect("http://localhost:3000/?error=server_error");
         }
     }
 
     private String getAccessToken(String code) {
         try {
+            log.info("액세스 토큰 요청 - clientId: {}, code: {}", clientId, code);
+            
             HttpHeaders headers = new HttpHeaders();
             headers.set("Accept", "application/json");
 
             OAuthAccessTokenRequest tokenRequest = new OAuthAccessTokenRequest(clientId, clientSecret, code);
             HttpEntity<OAuthAccessTokenRequest> request = new HttpEntity<>(tokenRequest, headers);
 
+            log.info("GitHub API 호출: {}", ACCESS_TOKEN_URL);
             OAuthAccessTokenResponse response = restTemplate.postForObject(
                     ACCESS_TOKEN_URL,
                     request,
@@ -144,10 +129,15 @@ public class LoginController {
             );
 
             if (response != null && response.getAccessToken() != null) {
+                log.info("액세스 토큰 획득 성공");
                 return response.getAccessToken();
             }
             
-            log.error("액세스 토큰 응답이 null이거나 토큰이 없습니다");
+            if (response != null) {
+                log.error("액세스 토큰 응답 에러: {}, {}", response.getError(), response.getErrorDescription());
+            } else {
+                log.error("액세스 토큰 응답이 null입니다");
+            }
             return null;
             
         } catch (Exception e) {
@@ -176,23 +166,6 @@ public class LoginController {
             log.error("사용자 정보 획득 중 에러 발생", e);
             return null;
         }
-    }
-
-    private Map<String, Object> createUserResponse(User user) {
-        Map<String, Object> userResponse = new HashMap<>();
-        userResponse.put("id", user.getId());
-        userResponse.put("githubId", user.getGithubId());
-        userResponse.put("login", user.getLogin());
-        userResponse.put("name", user.getName());
-        userResponse.put("email", user.getEmail());
-        userResponse.put("avatarUrl", user.getAvatarUrl());
-        userResponse.put("htmlUrl", user.getHtmlUrl());
-        userResponse.put("company", user.getCompany());
-        userResponse.put("location", user.getLocation());
-        userResponse.put("bio", user.getBio());
-        userResponse.put("createdAt", user.getCreatedAt());
-        userResponse.put("updatedAt", user.getUpdatedAt());
-        return userResponse;
     }
 
     @NoArgsConstructor
