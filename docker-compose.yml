@@ -1,6 +1,31 @@
 version: "3.8"
 
 services:
+    # Spring Boot 애플리케이션
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: growtime-app
+        restart: unless-stopped
+        environment:
+            SPRING_PROFILES_ACTIVE: docker
+            GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-Ov23linOWcipGKRtP0eD}
+            GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-7bc045e2274fa6cde9735328abd0f278c1c04ff2}
+        ports:
+            - "8080:8080"
+        depends_on:
+            - postgres
+        networks:
+            - growtime-network
+        healthcheck:
+            test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 60s
+
+    # PostgreSQL 데이터베이스
     postgres:
         image: postgres:15-alpine
         container_name: growtime-postgres
@@ -17,6 +42,11 @@ services:
             - ./init.sql:/docker-entrypoint-initdb.d/init.sql
         networks:
             - growtime-network
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U postgres"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
 
     # 선택사항: PostgreSQL 관리 도구 (pgAdmin)
     pgadmin:

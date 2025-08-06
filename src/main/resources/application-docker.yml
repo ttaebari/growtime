@@ -1,0 +1,44 @@
+spring:
+    application:
+        name: growtime
+    datasource:
+        # Docker Compose 네트워크에서 postgres 서비스명으로 연결
+        url: jdbc:postgresql://postgres:5432/postgres
+        username: postgres
+        password: qwer1234!!
+        driver-class-name: org.postgresql.Driver
+    jpa:
+        hibernate:
+            ddl-auto: update # Docker 환경에서는 update 사용
+            show-sql: false # 프로덕션 환경에 맞게 로그 레벨 조정
+        properties:
+            hibernate:
+                format_sql: false
+                dialect: org.hibernate.dialect.PostgreSQLDialect
+        database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+server:
+    port: 8080
+
+github:
+    clientId: ${GITHUB_CLIENT_ID:Ov23linOWcipGKRtP0eD}
+    clientSecret: ${GITHUB_CLIENT_SECRET:7bc045e2274fa6cde9735328abd0f278c1c04ff2}
+
+logging:
+    level:
+        com.board.growtime: INFO
+        org.springframework.web: WARN
+        org.hibernate.SQL: WARN
+        org.springframework.orm.jpa: WARN
+    pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Docker 환경 최적화
+management:
+    endpoints:
+        web:
+            exposure:
+                include: health,info,metrics
+    endpoint:
+        health:
+            show-details: when-authorized
