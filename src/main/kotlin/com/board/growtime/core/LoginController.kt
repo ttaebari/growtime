@@ -1,4 +1,4 @@
-package com.board.growtime.login
+package com.board.growtime.core
 
 import com.board.growtime.user.UserService
 import com.fasterxml.jackson.annotation.JsonProperty

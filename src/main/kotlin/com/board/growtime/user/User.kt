@@ -1,5 +1,6 @@
 package com.board.growtime.user
 
+import com.board.growtime.core.BaseEntity
 import jakarta.persistence.*
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.LastModifiedDate
@@ -38,21 +39,7 @@ class User(
     
     @Column
     var dischargeDate: LocalDate? = null, // 제대날짜
-    
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    var id: Long? = null
-) {
-    @CreatedDate
-    @Column(nullable = false, updatable = false)
-    var createdAt: LocalDateTime? = null
-        protected set
-
-    @LastModifiedDate
-    @Column(nullable = false)
-    var updatedAt: LocalDateTime? = null
-        protected set
-
+) : BaseEntity(){
     // 기본 생성자 (JPA용)
     protected constructor() : this("", "")
 

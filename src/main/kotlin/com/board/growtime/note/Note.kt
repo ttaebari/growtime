@@ -1,5 +1,6 @@
 package com.board.growtime.note
 
+import com.board.growtime.core.BaseEntity
 import com.board.growtime.user.User
 import jakarta.persistence.*
 import org.springframework.data.annotation.CreatedDate
@@ -20,20 +21,8 @@ class Note(
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     var user: User,
-    
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    var id: Long? = null
-) {
-    @CreatedDate
-    @Column(nullable = false, updatable = false)
-    var createdAt: LocalDateTime? = null
-        protected set
 
-    @LastModifiedDate
-    @Column(nullable = false)
-    var updatedAt: LocalDateTime? = null
-        protected set
+) : BaseEntity() {
 
     // 기본 생성자 (JPA용)
     protected constructor() : this("", "", User("", ""))
