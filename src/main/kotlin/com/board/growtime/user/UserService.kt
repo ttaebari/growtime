@@ -1,10 +1,16 @@
 package com.board.growtime.user
 
+import com.board.growtime.user.dto.UserInfo
+import com.board.growtime.user.result.UserInfoResult
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.*
 
+/**
+ * 사용자 기본 정보 관리를 담당하는 서비스
+ * 순수하게 사용자 CRUD 기능만 제공
+ */
 @Service
 @Transactional
 class UserService(
@@ -13,34 +19,32 @@ class UserService(
     private val log = LoggerFactory.getLogger(UserService::class.java)
 
     /**
-     * GitHub 사용자 정보로 사용자를 저장하거나 업데이트
+     * 사용자 정보 조회 및 응답 생성
      */
-    fun saveOrUpdateUser(
-        githubId: String,
-        login: String,
-        name: String?,
-        avatarUrl: String?,
-        htmlUrl: String?,
-        location: String?,
-        accessToken: String
-    ): User {
-        val existingUser = userRepository.findByGithubId(githubId)
+    @Transactional(readOnly = true)
+    fun getUserInfo(githubId: String): UserInfoResult {
+        val userOpt = userRepository.findByGithubId(githubId)
         
-        return if (existingUser.isPresent) {
-            // 기존 사용자 정보 업데이트
-            val user = existingUser.get()
-            user.updateUserInfo(name, avatarUrl, htmlUrl, location)
-            user.updateAccessToken(accessToken)
-            
-            log.info("기존 사용자 정보 업데이트: $login")
-            userRepository.save(user)
-        } else {
-            // 새 사용자 생성
-            val newUser = User(githubId, login, name, avatarUrl, htmlUrl, location, accessToken)
-            
-            log.info("새 사용자 생성: $login")
-            userRepository.save(newUser)
+        if (userOpt.isEmpty) {
+            return UserInfoResult.UserNotFound
         }
+
+        val user = userOpt.get()
+        val userInfo = UserInfo(
+            id = user.id,
+            githubId = user.githubId,
+            login = user.login,
+            name = user.name,
+            avatarUrl = user.avatarUrl,
+            htmlUrl = user.htmlUrl,
+            location = user.location,
+            entryDate = user.entryDate,
+            dischargeDate = user.dischargeDate,
+            createdAt = user.createdAt,
+            updatedAt = user.updatedAt
+        )
+
+        return UserInfoResult.Success(userInfo)
     }
 
     /**
@@ -84,9 +88,25 @@ class UserService(
     }
 
     /**
-     * 사용자 저장
+     * 사용자 저장 (일반적인 업데이트용)
      */
     fun saveUser(user: User): User {
         return userRepository.save(user)
+    }
+
+    /**
+     * 모든 사용자 조회
+     */
+    @Transactional(readOnly = true)
+    fun getAllUsers(): List<User> {
+        return userRepository.findAll()
+    }
+
+    /**
+     * 사용자 수 조회
+     */
+    @Transactional(readOnly = true)
+    fun getUserCount(): Long {
+        return userRepository.count()
     }
 } 

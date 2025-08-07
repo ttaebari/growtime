@@ -1,5 +1,6 @@
 package com.board.growtime.core
 
+import com.board.growtime.user.GitHubUserService
 import com.board.growtime.user.UserService
 import com.fasterxml.jackson.annotation.JsonProperty
 import jakarta.servlet.http.HttpServletResponse
@@ -17,7 +18,8 @@ import org.springframework.web.client.RestTemplate
 @RestController
 class LoginController(
     private val restTemplate: RestTemplate,
-    private val userService: UserService
+    private val userService: UserService,
+    private val gitHubUserService: GitHubUserService
 ) {
     private val log = LoggerFactory.getLogger(LoginController::class.java)
 
@@ -87,7 +89,7 @@ class LoginController(
 
             // 사용자 정보를 데이터베이스에 저장 또는 업데이트
             log.info("사용자 정보 저장 시작")
-            val savedUser = userService.saveOrUpdateUser(
+            val savedUser = gitHubUserService.saveOrUpdateUser(
                 userInfo.id.toString(),
                 userInfo.login,
                 userInfo.name,

@@ -1,32 +1,31 @@
 package com.board.growtime.user
 
+import com.board.growtime.user.dto.UserInfo
+import com.board.growtime.user.result.DDayInfoResult
+import com.board.growtime.user.result.ServiceDateResult
+import com.board.growtime.user.result.UserInfoResult
 import org.slf4j.LoggerFactory
 import org.springframework.format.annotation.DateTimeFormat
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.time.LocalDate
-import kotlin.math.max
-import kotlin.math.min
 
 @RestController
 @RequestMapping("/api/user")
 class UserController(
-    private val userService: UserService
+    private val userService: UserService,
+    private val gitHubUserService: GitHubUserService,
+    private val militaryService: MilitaryService
 ) {
     private val log = LoggerFactory.getLogger(UserController::class.java)
 
     // 사용자 정보 조회
     @GetMapping("/{githubId}")
     fun getUserInfo(@PathVariable githubId: String): ResponseEntity<*> {
-        val userOpt = userService.findByGithubId(githubId)
-        
-        if (userOpt.isEmpty) {
-            return ResponseEntity.notFound().build<Any>()
+        return when (val result = userService.getUserInfo(githubId)) {
+            is UserInfoResult.Success -> ResponseEntity.ok(result.userInfo)
+            is UserInfoResult.UserNotFound -> ResponseEntity.notFound().build<Any>()
         }
-
-        val user = userOpt.get()
-        val response = createUserResponse(user)
-        return ResponseEntity.ok(response)
     }
 
     // 입영/제대 날짜 설정
@@ -36,81 +35,73 @@ class UserController(
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) entryDate: LocalDate,
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) dischargeDate: LocalDate
     ): ResponseEntity<*> {
-        val userOpt = userService.findByGithubId(githubId)
-        
-        if (userOpt.isEmpty) {
-            return ResponseEntity.notFound().build<Any>()
+        return when (val result = militaryService.setServiceDates(githubId, entryDate, dischargeDate)) {
+            is ServiceDateResult.Success -> {
+                val userInfo = userService.getUserInfo(githubId)
+                if (userInfo is UserInfoResult.Success) {
+                    val response = userInfo.userInfo.toMap().toMutableMap()
+                    response["message"] = "복무 날짜가 성공적으로 설정되었습니다"
+                    ResponseEntity.ok(response)
+                } else {
+                    ResponseEntity.notFound().build<Any>()
+                }
+            }
+            is ServiceDateResult.UserNotFound -> ResponseEntity.notFound().build<Any>()
+            is ServiceDateResult.InvalidDates -> {
+                val errorResponse = mapOf("error" to result.message)
+                ResponseEntity.badRequest().body(errorResponse)
+            }
         }
-
-        val user = userOpt.get()
-        user.setServiceDates(entryDate, dischargeDate)
-        val updatedUser = userService.saveUser(user)
-
-        val response = createUserResponse(updatedUser).toMutableMap()
-        response["message"] = "복무 날짜가 성공적으로 설정되었습니다"
-        
-        log.info("사용자 복무 날짜 설정: {} - 입영: {}, 제대: {}", githubId, entryDate, dischargeDate)
-        
-        return ResponseEntity.ok(response)
     }
 
     // D-day 정보 조회
     @GetMapping("/{githubId}/d-day")
     fun getDDayInfo(@PathVariable githubId: String): ResponseEntity<*> {
-        val userOpt = userService.findByGithubId(githubId)
-        
-        if (userOpt.isEmpty) {
-            return ResponseEntity.notFound().build<Any>()
+        return when (val result = militaryService.getDDayInfo(githubId)) {
+            is DDayInfoResult.Success -> ResponseEntity.ok(result.dDayInfo)
+            is DDayInfoResult.UserNotFound -> ResponseEntity.notFound().build<Any>()
+            is DDayInfoResult.ServiceDatesNotSet -> {
+                val errorResponse = mapOf("error" to "복무 날짜가 설정되지 않았습니다")
+                ResponseEntity.badRequest().body(errorResponse)
+            }
         }
-
-        val user = userOpt.get()
-        
-        if (user.entryDate == null || user.dischargeDate == null) {
-            val errorResponse = mapOf("error" to "복무 날짜가 설정되지 않았습니다")
-            return ResponseEntity.badRequest().body(errorResponse)
-        }
-
-        val dDayInfo = mapOf(
-            "dDay" to user.calculateDDay(),
-            "serviceDays" to user.calculateServiceDays(),
-            "totalServiceDays" to user.calculateTotalServiceDays(),
-            "entryDate" to user.entryDate,
-            "dischargeDate" to user.dischargeDate,
-            "progressPercentage" to calculateProgressPercentage(user)
-        )
-
-        return ResponseEntity.ok(dDayInfo)
     }
 
-    private fun createUserResponse(user: User): Map<String, Any?> {
-        return mapOf(
-            "id" to user.id,
-            "githubId" to user.githubId,
-            "login" to user.login,
-            "name" to user.name,
-            "avatarUrl" to user.avatarUrl,
-            "htmlUrl" to user.htmlUrl,
-            "location" to user.location,
-            "entryDate" to user.entryDate,
-            "dischargeDate" to user.dischargeDate,
-            "createdAt" to user.createdAt,
-            "updatedAt" to user.updatedAt
-        )
+    // GitHub 사용자 생성/업데이트 (새로운 엔드포인트)
+    @PostMapping("/github")
+    fun createOrUpdateGitHubUser(
+        @RequestParam githubId: String,
+        @RequestParam login: String,
+        @RequestParam(required = false) name: String?,
+        @RequestParam(required = false) avatarUrl: String?,
+        @RequestParam(required = false) htmlUrl: String?,
+        @RequestParam(required = false) location: String?,
+        @RequestParam accessToken: String
+    ): ResponseEntity<*> {
+        val user = gitHubUserService.saveOrUpdateUser(githubId, login, name, avatarUrl, htmlUrl, location, accessToken)
+        
+        val userInfo = userService.getUserInfo(githubId)
+        return if (userInfo is UserInfoResult.Success) {
+            ResponseEntity.ok(userInfo.userInfo)
+        } else {
+            ResponseEntity.notFound().build<Any>()
+        }
     }
+}
 
-    private fun calculateProgressPercentage(user: User): Double {
-        if (user.entryDate == null || user.dischargeDate == null) {
-            return 0.0
-        }
-        
-        val totalDays = user.calculateTotalServiceDays()
-        val serviceDays = user.calculateServiceDays()
-        
-        if (totalDays <= 0) {
-            return 0.0
-        }
-        
-        val percentage = serviceDays.toDouble() / totalDays * 100
-        return min(max(percentage, 0.0), 100.0) // 0-100 범위로 제한
-    }
+// UserInfo를 Map으로 변환하는 확장 함수
+private fun UserInfo.toMap(): Map<String, Any?> {
+    return mapOf(
+        "id" to id,
+        "githubId" to githubId,
+        "login" to login,
+        "name" to name,
+        "avatarUrl" to avatarUrl,
+        "htmlUrl" to htmlUrl,
+        "location" to location,
+        "entryDate" to entryDate,
+        "dischargeDate" to dischargeDate,
+        "createdAt" to createdAt,
+        "updatedAt" to updatedAt
+    )
 } 
