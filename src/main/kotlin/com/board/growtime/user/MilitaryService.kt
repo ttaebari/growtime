@@ -69,7 +69,7 @@ class MilitaryService(
         }
 
         val dDayInfo = DDayInfo(
-            dDay = user.calculateDDay(),
+            dDayCount = user.calculateDDay(),
             serviceDays = user.calculateServiceDays(),
             totalServiceDays = user.calculateTotalServiceDays(),
             entryDate = user.entryDate!!,
