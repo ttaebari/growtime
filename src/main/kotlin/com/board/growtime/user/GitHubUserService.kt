@@ -71,46 +71,4 @@ class GitHubUserService(
         log.info("새 사용자 생성: $login")
         return userRepository.save(newUser)
     }
-
-    /**
-     * GitHub 액세스 토큰 업데이트
-     */
-    fun updateAccessToken(githubId: String, accessToken: String): Boolean {
-        val userOpt = userRepository.findByGithubId(githubId)
-        
-        if (userOpt.isEmpty) {
-            return false
-        }
-
-        val user = userOpt.get()
-        user.updateAccessToken(accessToken)
-        userRepository.save(user)
-        
-        log.info("사용자 액세스 토큰 업데이트: {}", githubId)
-        return true
-    }
-
-    /**
-     * GitHub 프로필 정보 동기화
-     */
-    fun syncGitHubProfile(
-        githubId: String,
-        name: String?,
-        avatarUrl: String?,
-        htmlUrl: String?,
-        location: String?
-    ): Boolean {
-        val userOpt = userRepository.findByGithubId(githubId)
-        
-        if (userOpt.isEmpty) {
-            return false
-        }
-
-        val user = userOpt.get()
-        user.updateUserInfo(name, avatarUrl, htmlUrl, location)
-        userRepository.save(user)
-        
-        log.info("GitHub 프로필 동기화: {}", githubId)
-        return true
-    }
 } 

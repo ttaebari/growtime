@@ -25,7 +25,7 @@ class Note(
 ) : BaseEntity() {
 
     // 기본 생성자 (JPA용)
-    protected constructor() : this("", "", User("", ""))
+//    protected constructor() : this("", "", User("", ""))
 
     // 회고 내용 업데이트
     fun updateNote(title: String, content: String) {

@@ -24,14 +24,6 @@ interface NoteRepository : JpaRepository<Note, Long> {
     // 사용자의 회고 개수 조회
     fun countByUser(user: User): Long
     
-    // 제목으로 검색 (사용자별)
-    @Query("SELECT n FROM Note n WHERE n.user = :user AND n.title LIKE %:keyword% ORDER BY n.createdAt DESC")
-    fun findByUserAndTitleContaining(@Param("user") user: User, @Param("keyword") keyword: String): List<Note>
-    
-    // 내용으로 검색 (사용자별)
-    @Query("SELECT n FROM Note n WHERE n.user = :user AND n.content LIKE %:keyword% ORDER BY n.createdAt DESC")
-    fun findByUserAndContentContaining(@Param("user") user: User, @Param("keyword") keyword: String): List<Note>
-    
     // 제목 또는 내용으로 검색 (사용자별)
     @Query("SELECT n FROM Note n WHERE n.user = :user AND (n.title LIKE %:keyword% OR n.content LIKE %:keyword%) ORDER BY n.createdAt DESC")
     fun findByUserAndTitleOrContentContaining(@Param("user") user: User, @Param("keyword") keyword: String): List<Note>

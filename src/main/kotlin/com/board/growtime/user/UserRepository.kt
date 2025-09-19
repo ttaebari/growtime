@@ -15,7 +15,4 @@ interface UserRepository : JpaRepository<User, Long> {
     
     // GitHub ID로 사용자 존재 여부 확인
     fun existsByGithubId(githubId: String): Boolean
-    
-    // GitHub 로그인으로 사용자 존재 여부 확인
-    fun existsByLogin(login: String): Boolean
 } 

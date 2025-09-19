@@ -1,5 +1,6 @@
 package com.board.growtime.user
 
+import com.board.growtime.enums.ServiceStatus
 import com.board.growtime.user.dto.DDayInfo
 import com.board.growtime.user.result.DDayInfoResult
 import com.board.growtime.user.result.ServiceDateResult
@@ -123,14 +124,3 @@ class MilitaryService(
         }
     }
 }
-
-/**
- * 복무 상태를 나타내는 enum
- */
-enum class ServiceStatus {
-    UserNotFound,
-    NotSet,
-    BeforeEntry,
-    Serving,
-    Discharged
-} 

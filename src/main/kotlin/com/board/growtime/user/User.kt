@@ -41,7 +41,7 @@ class User(
     var dischargeDate: LocalDate? = null, // 제대날짜
 ) : BaseEntity(){
     // 기본 생성자 (JPA용)
-    protected constructor() : this("", "")
+//    protected constructor() : this("", "")
 
     // 사용자 정보 업데이트 메서드
     fun updateUserInfo(name: String?, avatarUrl: String?, htmlUrl: String?, location: String?) {
