@@ -1,6 +1,7 @@
 package com.board.growtime.note
 
 import com.board.growtime.core.BaseEntity
+import com.board.growtime.enums.developType
 import com.board.growtime.user.User
 import jakarta.persistence.*
 import org.springframework.data.annotation.CreatedDate
@@ -22,14 +23,16 @@ class Note(
     @JoinColumn(name = "user_id", nullable = false)
     var user: User,
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "develop_type", nullable = false)
+    var developType: developType
+
 ) : BaseEntity() {
 
-    // 기본 생성자 (JPA용)
-//    protected constructor() : this("", "", User("", ""))
-
     // 회고 내용 업데이트
-    fun updateNote(title: String, content: String) {
+    fun updateNote(title: String, content: String, developType: developType) {
         this.title = title
         this.content = content
+        this.developType = developType
     }
 } 

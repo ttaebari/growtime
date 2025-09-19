@@ -1,5 +1,6 @@
 package com.board.growtime.note.dto
 
+import com.board.growtime.enums.developType
 import java.time.LocalDateTime
 import java.util.*
 
@@ -10,6 +11,7 @@ data class NoteInfo(
     val id: Int?,
     val title: String,
     val content: String,
+    val developType: developType,
     val createdAt: LocalDateTime?,
     val updatedAt: LocalDateTime?
 )
@@ -19,7 +21,8 @@ data class NoteInfo(
  */
 data class CreateNoteRequest(
     val title: String,
-    val content: String
+    val content: String,
+    val developType: developType
 )
 
 /**
@@ -27,7 +30,8 @@ data class CreateNoteRequest(
  */
 data class UpdateNoteRequest(
     val title: String,
-    val content: String
+    val content: String,
+    val developType: developType
 )
 
 /**

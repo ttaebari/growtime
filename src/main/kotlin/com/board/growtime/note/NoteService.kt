@@ -39,7 +39,7 @@ class NoteService(
         }
         
         val user = userOpt.get()
-        val note = Note(title, content, user)
+        val note = Note(title, content, user, request.developType)
         val savedNote = noteRepository.save(note)
         
         log.info("회고 작성 완료: 사용자={}, 제목={}, ID={}", githubId, title, savedNote.id)
@@ -140,7 +140,7 @@ class NoteService(
         }
         
         val note = noteOpt.get()
-        note.updateNote(title, content)
+        note.updateNote(title, content, request.developType)
         val updatedNote = noteRepository.save(note)
         
         log.info("회고 수정 완료: 사용자={}, 제목={}, ID={}", githubId, title, noteId)
@@ -218,6 +218,7 @@ private fun Note.toNoteInfo(): NoteInfo {
         id = this.id,
         title = this.title,
         content = this.content,
+        developType = this.developType,
         createdAt = this.createdAt,
         updatedAt = this.updatedAt
     )
