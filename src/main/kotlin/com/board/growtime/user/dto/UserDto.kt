@@ -8,7 +8,7 @@ import java.util.*
  * 사용자 정보 데이터 전송 객체
  */
 data class UserInfo(
-    val id: UUID?,
+    val id: Int?,
     val githubId: String,
     val login: String,
     val name: String?,

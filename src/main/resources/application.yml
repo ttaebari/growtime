@@ -2,13 +2,13 @@ spring:
     application:
         name: growtime
     datasource:
-        url: jdbc:postgresql://localhost:5432/postgres
+        url: jdbc:postgresql://localhost:5432/growtime
         username: postgres
         password: qwer1234!!
         driver-class-name: org.postgresql.Driver
     jpa:
         hibernate:
-            ddl-auto: create-drop
+            ddl-auto: update
             show-sql: true
             defer-datasource-initialization: true
         properties:
@@ -16,9 +16,16 @@ spring:
                 format_sql: true
                 dialect: org.hibernate.dialect.PostgreSQLDialect
         database-platform: org.hibernate.dialect.PostgreSQLDialect
+    jackson:
+        property-naming-strategy: LOWER_CAMEL_CASE
+        default-property-inclusion: NON_NULL
+        serialization:
+            write-dates-as-timestamps: false
+        deserialization:
+            fail-on-unknown-properties: false
 
 server:
-    port: 8080
+    port: 8088
 
 github:
     clientId: ${GITHUB_CLIENT_ID:Ov23linOWcipGKRtP0eD}

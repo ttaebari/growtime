@@ -33,8 +33,8 @@
 2. "New OAuth App" 클릭
 3. 다음 정보 입력:
     - **Application name**: GrowTime
-    - **Homepage URL**: `http://localhost:8080`
-    - **Authorization callback URL**: `http://localhost:8080/callback`
+    - **Homepage URL**: `http://localhost:8088`
+    - **Authorization callback URL**: `http://localhost:8088/callback`
 4. "Register application" 클릭
 5. **Client ID**와 **Client Secret** 복사
 
@@ -74,7 +74,7 @@ cd growtime
 
 ## 🌐 사용 방법
 
-1. 브라우저에서 `http://localhost:8080` 접속
+1. 브라우저에서 `http://localhost:8088` 접속
 2. "GitHub로 로그인" 버튼 클릭
 3. GitHub 인증 페이지에서 권한 승인
 4. 로그인 완료 후 메인 페이지로 리다이렉트

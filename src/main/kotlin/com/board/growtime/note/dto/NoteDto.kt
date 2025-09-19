@@ -7,7 +7,7 @@ import java.util.*
  * 회고 정보 데이터 전송 객체
  */
 data class NoteInfo(
-    val id: UUID?,
+    val id: Int?,
     val title: String,
     val content: String,
     val createdAt: LocalDateTime?,
