@@ -18,7 +18,7 @@ spring:
         database-platform: org.hibernate.dialect.PostgreSQLDialect
 
 server:
-    port: 8088
+    port: 8196
 
 github:
     clientId: ${GITHUB_CLIENT_ID:Ov23linOWcipGKRtP0eD}
