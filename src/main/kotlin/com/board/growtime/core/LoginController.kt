@@ -50,22 +50,19 @@ class LoginController(
     @GetMapping("/callback")
     fun handleCallback(
         @RequestParam(required = false) code: String?,
-        @RequestParam(required = false) error: String?,
-        response: HttpServletResponse
-    ) {
+        @RequestParam(required = false) error: String?
+    ): ResponseEntity<Any> {
         log.info("GitHub 콜백 호출됨 - code: {}, error: {}", code, error)
 
         // OAuth 에러 처리
         if (error != null) {
             log.error("GitHub OAuth 에러: {}", error)
-            response.sendRedirect("http://localhost:3000/?error=$error")
-            return
+            return ResponseEntity.badRequest().body(mapOf("error" to error))
         }
 
         if (code.isNullOrBlank()) {
             log.error("인증 코드가 없습니다")
-            response.sendRedirect("http://localhost:3000/?error=no_auth_code")
-            return
+            return ResponseEntity.badRequest().body(mapOf("error" to "no_auth_code"))
         }
 
         try {
@@ -73,8 +70,7 @@ class LoginController(
             val accessToken = getAccessToken(code)
             if (accessToken == null) {
                 log.error("액세스 토큰을 받지 못했습니다")
-                response.sendRedirect("http://localhost:3000/?error=no_token")
-                return
+                return ResponseEntity.status(401).body(mapOf("error" to "no_token"))
             }
             log.info("액세스 토큰 획득 성공")
 
@@ -82,8 +78,7 @@ class LoginController(
             val userInfo = getUserInfo(accessToken)
             if (userInfo == null) {
                 log.error("사용자 정보를 받지 못했습니다")
-                response.sendRedirect("http://localhost:3000/?error=no_user_info")
-                return
+                return ResponseEntity.status(401).body(mapOf("error" to "no_user_info"))
             }
             log.info("사용자 정보 획득 성공: {}", userInfo.login)
 
@@ -100,13 +95,16 @@ class LoginController(
             )
             log.info("사용자 정보 저장 완료: {}", savedUser.githubId)
 
-            // 프론트엔드 메인페이지로 리다이렉트
-            val redirectUrl = "http://localhost:3000/main?githubId=${savedUser.githubId}"
-            log.info("리다이렉트 URL: {}", redirectUrl)
-            response.sendRedirect(redirectUrl)
+            val response = LoginResponse(
+                accessToken = accessToken,
+                refreshToken = null, // GitHub does not typically return refresh token in this flow without explicit offline_access scope configuration
+                githubId = savedUser.githubId
+            )
+            return ResponseEntity.ok(response)
+
         } catch (e: Exception) {
             log.error("콜백 처리 중 예외 발생", e)
-            response.sendRedirect("http://localhost:3000/?error=server_error")
+            return ResponseEntity.internalServerError().body(mapOf("error" to "server_error"))
         }
     }
 
@@ -216,5 +214,11 @@ class LoginController(
 
         @JsonProperty("bio")
         val bio: String? = null
+    )
+
+    data class LoginResponse(
+        val accessToken: String,
+        val refreshToken: String?,
+        val githubId: String
     )
 }
