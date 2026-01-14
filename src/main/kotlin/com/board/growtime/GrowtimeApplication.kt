@@ -9,7 +9,6 @@ import org.springframework.web.client.RestTemplate
 
 @SpringBootApplication
 @EnableJpaAuditing
-@EntityScan("com.board.growtime.user", "com.board.growtime.note")
 class GrowtimeApplication {
 
     @Bean
