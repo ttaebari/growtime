@@ -1,4 +1,4 @@
-package com.board.growtime.core.exception
+package com.board.growtime.common.exception
 
 /**
  * 비즈니스 예외를 나타내는 기본 클래스

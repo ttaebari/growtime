@@ -1,4 +1,4 @@
-package com.board.growtime.core.util
+package com.board.growtime.common.util
 
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter

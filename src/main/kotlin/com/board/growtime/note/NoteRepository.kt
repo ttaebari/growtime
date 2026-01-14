@@ -19,7 +19,7 @@ interface NoteRepository : JpaRepository<Note, Long> {
     fun findByUserOrderByCreatedAtDesc(user: User, pageable: Pageable): Page<Note>
     
     // 사용자와 ID로 회고 조회
-    fun findByIdAndUser(id: Long, user: User): Optional<Note>
+    fun findByIdAndUser(id: Long, user: User): Note?
     
     // 사용자의 회고 개수 조회
     fun countByUser(user: User): Long

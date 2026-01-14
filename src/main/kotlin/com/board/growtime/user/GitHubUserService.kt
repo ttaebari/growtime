@@ -28,8 +28,8 @@ class GitHubUserService(
     ): User {
         val existingUser = userRepository.findByGithubId(githubId)
         
-        return if (existingUser.isPresent) {
-            updateExistingUser(existingUser.get(), name, avatarUrl, htmlUrl, location, accessToken, login)
+        return if (existingUser != null) {
+            updateExistingUser(existingUser, name, avatarUrl, htmlUrl, location, accessToken, login)
         } else {
             createNewUser(githubId, login, name, avatarUrl, htmlUrl, location, accessToken)
         }

@@ -8,10 +8,10 @@ import java.util.*
 interface UserRepository : JpaRepository<User, Long> {
     
     // GitHub ID로 사용자 찾기
-    fun findByGithubId(githubId: String): Optional<User>
+    fun findByGithubId(githubId: String): User?
     
     // GitHub 로그인으로 사용자 찾기
-    fun findByLogin(login: String): Optional<User>
+    fun findByLogin(login: String): User?
     
     // GitHub ID로 사용자 존재 여부 확인
     fun existsByGithubId(githubId: String): Boolean

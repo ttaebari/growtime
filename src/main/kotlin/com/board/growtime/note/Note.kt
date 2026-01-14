@@ -1,6 +1,6 @@
 package com.board.growtime.note
 
-import com.board.growtime.core.BaseEntity
+import com.board.growtime.common.BaseEntity
 import com.board.growtime.enums.developType
 import com.board.growtime.user.User
 import jakarta.persistence.*

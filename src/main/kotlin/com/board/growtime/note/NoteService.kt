@@ -1,12 +1,12 @@
 package com.board.growtime.note
 
-import com.board.growtime.core.exception.NoteNotFoundException
-import com.board.growtime.core.exception.InvalidNoteDataException
-import com.board.growtime.core.exception.UserNotFoundException
-import com.board.growtime.core.util.ValidationUtils
+import com.board.growtime.common.exception.NoteNotFoundException
+import com.board.growtime.common.exception.InvalidNoteDataException
+import com.board.growtime.common.exception.UserNotFoundException
+import com.board.growtime.common.util.ValidationUtils
 import com.board.growtime.note.dto.*
-import com.board.growtime.note.result.*
-import com.board.growtime.user.User
+import com.board.growtime.note.dto.toNoteInfo
+import com.board.growtime.note.dto.toNoteInfoList
 import com.board.growtime.user.UserRepository
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Pageable
@@ -23,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional
  * 4. 예외 처리 통일 - 명확한 예외 타입으로 에러 상황 구분
  */
 @Service
-@Transactional
 class NoteService(
     private val noteRepository: NoteRepository,
     private val userRepository: UserRepository
@@ -31,25 +30,19 @@ class NoteService(
     private val log = LoggerFactory.getLogger(NoteService::class.java)
 
     /**
-     * 회고 작성 (비즈니스 로직 포함)
-     * 
-     * 학습 포인트:
-     * - 입력값 검증을 서비스 레이어에서 담당
-     * - 비즈니스 규칙을 명확히 정의하고 적용
-     * - 로깅을 통한 중요한 비즈니스 이벤트 추적
+     * 회고 작성
      */
-    fun createNote(githubId: String, request: CreateNoteRequest): CreateNoteResult {
-        // 비즈니스 로직: 입력값 검증
+    @Transactional
+    fun createNote(githubId: String, request: CreateNoteRequest): NoteInfo {
         validateGitHubId(githubId)
         validateNoteData(request)
         
-        val userOpt = userRepository.findByGithubId(githubId.trim())
-        if (userOpt.isEmpty) {
-            log.warn("회고 작성 실패 - 사용자 없음: {}", githubId)
-            return CreateNoteResult.UserNotFound("사용자를 찾을 수 없습니다: $githubId")
-        }
+        val user = userRepository.findByGithubId(githubId.trim())
+            ?: run {
+                log.warn("회고 작성 실패 - 사용자 없음: {}", githubId)
+                throw UserNotFoundException(githubId)
+            }
         
-        val user = userOpt.get()
         val note = Note(
             title = request.title.trim(),
             content = request.content.trim(),
@@ -60,100 +53,78 @@ class NoteService(
         
         log.info("회고 작성 완료: 사용자={}, 제목={}, ID={}", githubId, request.title, savedNote.id)
         
-        return CreateNoteResult.Success(
-            note = savedNote.toNoteInfo(),
-            message = "회고가 성공적으로 작성되었습니다."
-        )
+        return savedNote.toNoteInfo()
     }
 
     /**
-     * 회고 목록 조회 (비즈니스 로직 포함)
+     * 회고 목록 조회
      */
     @Transactional(readOnly = true)
-    fun getNotes(githubId: String): GetNotesResult {
+    fun getNotes(githubId: String): List<NoteInfo> {
         validateGitHubId(githubId)
         
-        val userOpt = userRepository.findByGithubId(githubId.trim())
-        if (userOpt.isEmpty) {
-            return GetNotesResult.UserNotFound("사용자를 찾을 수 없습니다: $githubId")
-        }
+        val user = userRepository.findByGithubId(githubId.trim())
+            ?: throw UserNotFoundException(githubId)
         
-        val user = userOpt.get()
         val notes = noteRepository.findByUserOrderByCreatedAtDesc(user)
         
-        return GetNotesResult.Success(
-            NoteListResponse(notes = notes.map { it.toNoteInfo() })
-        )
+        return notes.toNoteInfoList()
     }
 
     /**
-     * 회고 페이징 조회 (비즈니스 로직 포함)
+     * 회고 페이징 조회
      */
     @Transactional(readOnly = true)
-    fun getNotesWithPaging(githubId: String, pageable: Pageable): GetNotesResult {
+    fun getNotesWithPaging(githubId: String, pageable: Pageable): NoteListResponse {
         validateGitHubId(githubId)
         
-        val userOpt = userRepository.findByGithubId(githubId.trim())
-        if (userOpt.isEmpty) {
-            return GetNotesResult.UserNotFound("사용자를 찾을 수 없습니다: $githubId")
-        }
+        val user = userRepository.findByGithubId(githubId.trim())
+            ?: throw UserNotFoundException(githubId)
         
-        val user = userOpt.get()
         val notesPage = noteRepository.findByUserOrderByCreatedAtDesc(user, pageable)
         
-        return GetNotesResult.Success(
-            NoteListResponse(
-                notes = notesPage.content.map { it.toNoteInfo() },
-                totalElements = notesPage.totalElements,
-                totalPages = notesPage.totalPages,
-                currentPage = notesPage.number,
-                size = notesPage.size
-            )
+        return NoteListResponse(
+            notes = notesPage.content.toNoteInfoList(),
+            totalElements = notesPage.totalElements,
+            totalPages = notesPage.totalPages,
+            currentPage = notesPage.number,
+            size = notesPage.size
         )
     }
 
     /**
-     * 회고 상세 조회 (비즈니스 로직 포함)
+     * 회고 상세 조회
      */
     @Transactional(readOnly = true)
-    fun getNote(githubId: String, noteId: Long): GetNoteResult {
+    fun getNote(githubId: String, noteId: Long): NoteInfo {
         validateGitHubId(githubId)
         
-        val userOpt = userRepository.findByGithubId(githubId.trim())
-        if (userOpt.isEmpty) {
-            return GetNoteResult.UserNotFound("사용자를 찾을 수 없습니다: $githubId")
-        }
+        val user = userRepository.findByGithubId(githubId.trim())
+            ?: throw UserNotFoundException(githubId)
         
-        val user = userOpt.get()
-        val noteOpt = noteRepository.findByIdAndUser(noteId, user)
-        if (noteOpt.isEmpty) {
-            log.warn("회고 조회 실패 - 회고 없음: 사용자={}, 회고ID={}", githubId, noteId)
-            return GetNoteResult.NotFound("회고를 찾을 수 없습니다: $noteId")
-        }
+        val note = noteRepository.findByIdAndUser(noteId, user)
+            ?: run {
+                log.warn("회고 조회 실패 - 회고 없음: 사용자={}, 회고ID={}", githubId, noteId)
+                throw NoteNotFoundException(noteId)
+            }
         
-        return GetNoteResult.Success(noteOpt.get().toNoteInfo())
+        return note.toNoteInfo()
     }
 
     /**
-     * 회고 수정 (비즈니스 로직 포함)
+     * 회고 수정
      */
-    fun updateNote(githubId: String, noteId: Long, request: UpdateNoteRequest): UpdateNoteResult {
-        // 비즈니스 로직: 입력값 검증
+    @Transactional
+    fun updateNote(githubId: String, noteId: Long, request: UpdateNoteRequest): NoteInfo {
         validateGitHubId(githubId)
         validateNoteData(request)
         
-        val userOpt = userRepository.findByGithubId(githubId.trim())
-        if (userOpt.isEmpty) {
-            return UpdateNoteResult.UserNotFound("사용자를 찾을 수 없습니다: $githubId")
-        }
+        val user = userRepository.findByGithubId(githubId.trim())
+            ?: throw UserNotFoundException(githubId)
         
-        val user = userOpt.get()
-        val noteOpt = noteRepository.findByIdAndUser(noteId, user)
-        if (noteOpt.isEmpty) {
-            return UpdateNoteResult.NotFound("회고를 찾을 수 없습니다: $noteId")
-        }
+        val note = noteRepository.findByIdAndUser(noteId, user)
+            ?: throw NoteNotFoundException(noteId)
         
-        val note = noteOpt.get()
         note.updateNote(
             title = request.title.trim(),
             content = request.content.trim(),
@@ -163,75 +134,58 @@ class NoteService(
         
         log.info("회고 수정 완료: 사용자={}, 제목={}, ID={}", githubId, request.title, noteId)
         
-        return UpdateNoteResult.Success(
-            note = updatedNote.toNoteInfo(),
-            message = "회고가 성공적으로 수정되었습니다."
-        )
+        return updatedNote.toNoteInfo()
     }
 
     /**
-     * 회고 삭제 (비즈니스 로직 포함)
+     * 회고 삭제
      */
-    fun deleteNote(githubId: String, noteId: Long): DeleteNoteResult {
+    @Transactional
+    fun deleteNote(githubId: String, noteId: Long) {
         validateGitHubId(githubId)
         
-        val userOpt = userRepository.findByGithubId(githubId.trim())
-        if (userOpt.isEmpty) {
-            return DeleteNoteResult.UserNotFound("사용자를 찾을 수 없습니다: $githubId")
-        }
+        val user = userRepository.findByGithubId(githubId.trim())
+            ?: throw UserNotFoundException(githubId)
         
-        val user = userOpt.get()
-        val noteOpt = noteRepository.findByIdAndUser(noteId, user)
-        if (noteOpt.isEmpty) {
-            return DeleteNoteResult.NotFound("회고를 찾을 수 없습니다: $noteId")
-        }
+        val note = noteRepository.findByIdAndUser(noteId, user)
+            ?: throw NoteNotFoundException(noteId)
         
-        noteRepository.delete(noteOpt.get())
+        noteRepository.delete(note)
         log.info("회고 삭제 완료: 사용자={}, ID={}", githubId, noteId)
-        
-        return DeleteNoteResult.Success("회고가 성공적으로 삭제되었습니다.")
     }
 
     /**
-     * 회고 검색 (비즈니스 로직 포함)
+     * 회고 검색
      */
     @Transactional(readOnly = true)
-    fun searchNotes(githubId: String, keyword: String): SearchNotesResult {
+    fun searchNotes(githubId: String, keyword: String): NoteSearchResponse {
         validateGitHubId(githubId)
         validateSearchKeyword(keyword)
         
-        val userOpt = userRepository.findByGithubId(githubId.trim())
-        if (userOpt.isEmpty) {
-            return SearchNotesResult.UserNotFound("사용자를 찾을 수 없습니다: $githubId")
-        }
+        val user = userRepository.findByGithubId(githubId.trim())
+            ?: throw UserNotFoundException(githubId)
         
-        val user = userOpt.get()
         val notes = noteRepository.findByUserAndTitleOrContentContaining(user, keyword.trim())
         
-        return SearchNotesResult.Success(
-            NoteSearchResponse(
-                notes = notes.map { it.toNoteInfo() },
-                totalCount = notes.size
-            )
+        return NoteSearchResponse(
+            notes = notes.toNoteInfoList(),
+            totalCount = notes.size
         )
     }
 
     /**
-     * 사용자의 회고 개수 조회 (비즈니스 로직 포함)
+     * 사용자의 회고 개수 조회
      */
     @Transactional(readOnly = true)
-    fun getNoteCount(githubId: String): GetNoteCountResult {
+    fun getNoteCount(githubId: String): NoteCountResponse {
         validateGitHubId(githubId)
         
-        val userOpt = userRepository.findByGithubId(githubId.trim())
-        if (userOpt.isEmpty) {
-            return GetNoteCountResult.UserNotFound("사용자를 찾을 수 없습니다: $githubId")
-        }
+        val user = userRepository.findByGithubId(githubId.trim())
+            ?: throw UserNotFoundException(githubId)
         
-        val user = userOpt.get()
         val count = noteRepository.countByUser(user)
         
-        return GetNoteCountResult.Success(NoteCountResponse(count))
+        return NoteCountResponse(count)
     }
 
     /**
@@ -244,7 +198,7 @@ class NoteService(
     }
 
     /**
-     * 회고 데이터 검증 (비즈니스 규칙)
+     * 회고 데이터 검증
      */
     private fun validateNoteData(data: CreateNoteRequest) {
         if (!ValidationUtils.isValidNoteTitle(data.title)) {
@@ -257,7 +211,7 @@ class NoteService(
     }
 
     /**
-     * 회고 데이터 검증 (비즈니스 규칙) - Update용
+     * 회고 데이터 검증 (Update용)
      */
     private fun validateNoteData(data: UpdateNoteRequest) {
         if (!ValidationUtils.isValidNoteTitle(data.title)) {
@@ -282,17 +236,3 @@ class NoteService(
         }
     }
 }
-
-/**
- * Note Entity를 NoteInfo DTO로 변환하는 확장 함수
- */
-private fun Note.toNoteInfo(): NoteInfo {
-    return NoteInfo(
-        id = this.id,
-        title = this.title,
-        content = this.content,
-        developType = this.developType,
-        createdAt = this.createdAt,
-        updatedAt = this.updatedAt
-    )
-} 

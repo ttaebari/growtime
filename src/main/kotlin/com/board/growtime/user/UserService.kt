@@ -1,14 +1,13 @@
 package com.board.growtime.user
 
-import com.board.growtime.core.exception.UserNotFoundException
-import com.board.growtime.core.exception.InvalidUserDataException
-import com.board.growtime.core.util.ValidationUtils
+import com.board.growtime.common.exception.UserNotFoundException
+import com.board.growtime.common.exception.InvalidUserDataException
+import com.board.growtime.common.util.ValidationUtils
 import com.board.growtime.user.dto.UserInfo
-import com.board.growtime.user.result.UserInfoResult
+import com.board.growtime.user.dto.toUserInfo
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.util.*
 
 /**
  * 사용자 기본 정보 관리를 담당하는 서비스
@@ -20,37 +19,26 @@ import java.util.*
  * 4. 검증 로직 분리 - 유틸리티 클래스를 활용한 입력값 검증
  */
 @Service
-@Transactional
 class UserService(
     private val userRepository: UserRepository
 ) {
     private val log = LoggerFactory.getLogger(UserService::class.java)
 
     /**
-     * 사용자 정보 조회 (비즈니스 로직 포함)
-     * 
-     * 학습 포인트:
-     * - 입력값 검증을 서비스 레이어에서 담당
-     * - 명확한 예외 처리로 에러 상황 명시
-     * - 로깅을 통한 디버깅 정보 제공
+     * 사용자 정보 조회
      */
     @Transactional(readOnly = true)
-    fun getUserInfo(githubId: String): UserInfoResult {
-        // 비즈니스 로직: 입력값 검증
+    fun getUserInfo(githubId: String): UserInfo {
         validateGitHubId(githubId)
         
-        val userOpt = userRepository.findByGithubId(githubId.trim())
-        
-        if (userOpt.isEmpty) {
-            log.warn("사용자 조회 실패: {}", githubId)
-            return UserInfoResult.UserNotFound
-        }
-
-        val user = userOpt.get()
-        val userInfo = convertToUserInfo(user)
+        val user = userRepository.findByGithubId(githubId.trim())
+            ?: run {
+                log.warn("사용자 조회 실패: {}", githubId)
+                throw UserNotFoundException(githubId)
+            }
         
         log.debug("사용자 조회 성공: {}", githubId)
-        return UserInfoResult.Success(userInfo)
+        return user.toUserInfo()
     }
 
     /**
@@ -65,23 +53,19 @@ class UserService(
     /**
      * 사용자 기본 정보 업데이트
      */
+    @Transactional
     fun updateUserBasicInfo(
         githubId: String,
         name: String?,
         avatarUrl: String?,
         htmlUrl: String?,
         location: String?
-    ): UserInfoResult {
+    ): UserInfo {
         validateGitHubId(githubId)
         
-        val userOpt = userRepository.findByGithubId(githubId.trim())
-        if (userOpt.isEmpty) {
-            return UserInfoResult.UserNotFound
-        }
-
-        val user = userOpt.get()
+        val user = userRepository.findByGithubId(githubId.trim())
+            ?: throw UserNotFoundException(githubId)
         
-        // 비즈니스 로직: 입력값 검증 및 업데이트
         if (!ValidationUtils.isBlank(name)) {
             user.name = name?.trim()
         }
@@ -98,34 +82,15 @@ class UserService(
         val updatedUser = userRepository.save(user)
         log.info("사용자 기본 정보 업데이트 완료: {}", githubId)
         
-        return UserInfoResult.Success(convertToUserInfo(updatedUser))
+        return updatedUser.toUserInfo()
     }
 
     /**
-     * GitHub ID 검증 (비즈니스 규칙)
+     * GitHub ID 검증
      */
     private fun validateGitHubId(githubId: String) {
         if (!ValidationUtils.isValidGitHubId(githubId)) {
             throw InvalidUserDataException("올바른 GitHub ID 형식이 아닙니다: $githubId")
         }
-    }
-
-    /**
-     * User 엔티티를 UserInfo DTO로 변환
-     */
-    private fun convertToUserInfo(user: User): UserInfo {
-        return UserInfo(
-            id = user.id,
-            githubId = user.githubId,
-            login = user.login,
-            name = user.name,
-            avatarUrl = user.avatarUrl,
-            htmlUrl = user.htmlUrl,
-            location = user.location,
-            entryDate = user.entryDate,
-            dischargeDate = user.dischargeDate,
-            createdAt = user.createdAt,
-            updatedAt = user.updatedAt
-        )
     }
 } 

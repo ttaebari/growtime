@@ -1,4 +1,4 @@
-package com.board.growtime.core.util
+package com.board.growtime.common.util
 
 /**
  * 입력값 검증 유틸리티 클래스

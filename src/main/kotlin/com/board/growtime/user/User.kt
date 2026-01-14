@@ -1,6 +1,6 @@
 package com.board.growtime.user
 
-import com.board.growtime.core.BaseEntity
+import com.board.growtime.common.BaseEntity
 import jakarta.persistence.*
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.LastModifiedDate

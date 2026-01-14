@@ -1,14 +1,12 @@
 package com.board.growtime.user
 
-import com.board.growtime.core.exception.InvalidServiceDateException
-import com.board.growtime.core.exception.ServiceDateNotSetException
-import com.board.growtime.core.exception.UserNotFoundException
-import com.board.growtime.core.util.DateUtils
-import com.board.growtime.core.util.ValidationUtils
+import com.board.growtime.common.exception.InvalidServiceDateException
+import com.board.growtime.common.exception.ServiceDateNotSetException
+import com.board.growtime.common.exception.UserNotFoundException
+import com.board.growtime.common.util.DateUtils
+import com.board.growtime.common.util.ValidationUtils
 import com.board.growtime.enums.ServiceStatus
 import com.board.growtime.user.dto.DDayInfo
-import com.board.growtime.user.result.DDayInfoResult
-import com.board.growtime.user.result.ServiceDateResult
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -24,76 +22,60 @@ import java.time.LocalDate
  * 4. 예외 처리 통일 - 명확한 예외 타입으로 에러 상황 구분
  */
 @Service
-@Transactional
 class MilitaryService(
     private val userRepository: UserRepository
 ) {
     private val log = LoggerFactory.getLogger(MilitaryService::class.java)
 
     /**
-     * 복무 날짜 설정 (비즈니스 로직 포함)
-     * 
-     * 학습 포인트:
-     * - 입력값 검증을 서비스 레이어에서 담당
-     * - 비즈니스 규칙을 명확히 정의하고 적용
-     * - 로깅을 통한 중요한 비즈니스 이벤트 추적
+     * 복무 날짜 설정
      */
-    fun setServiceDates(githubId: String, entryDate: LocalDate, dischargeDate: LocalDate): ServiceDateResult {
-        // 비즈니스 로직: 입력값 검증
+    @Transactional
+    fun setServiceDates(githubId: String, entryDate: LocalDate, dischargeDate: LocalDate): User {
         validateGitHubId(githubId)
         validateServiceDates(entryDate, dischargeDate)
         
-        val userOpt = userRepository.findByGithubId(githubId.trim())
-        if (userOpt.isEmpty) {
-            log.warn("복무 날짜 설정 실패 - 사용자 없음: {}", githubId)
-            return ServiceDateResult.UserNotFound
-        }
+        val user = userRepository.findByGithubId(githubId.trim())
+            ?: run {
+                log.warn("복무 날짜 설정 실패 - 사용자 없음: {}", githubId)
+                throw UserNotFoundException(githubId)
+            }
 
-        val user = userOpt.get()
         user.setServiceDates(entryDate, dischargeDate)
         val updatedUser = userRepository.save(user)
 
         log.info("복무 날짜 설정 완료: {} - 입영: {}, 제대: {}", githubId, entryDate, dischargeDate)
         
-        return ServiceDateResult.Success(updatedUser)
+        return updatedUser
     }
 
     /**
-     * D-day 정보 조회 (비즈니스 로직 포함)
+     * D-day 정보 조회
      */
     @Transactional(readOnly = true)
-    fun getDDayInfo(githubId: String): DDayInfoResult {
+    fun getDDayInfo(githubId: String): DDayInfo {
         validateGitHubId(githubId)
         
-        val userOpt = userRepository.findByGithubId(githubId.trim())
-        if (userOpt.isEmpty) {
-            return DDayInfoResult.UserNotFound
-        }
-
-        val user = userOpt.get()
+        val user = userRepository.findByGithubId(githubId.trim())
+            ?: throw UserNotFoundException(githubId)
         
         if (user.entryDate == null || user.dischargeDate == null) {
-            return DDayInfoResult.ServiceDatesNotSet
+            throw ServiceDateNotSetException()
         }
 
-        val dDayInfo = calculateDDayInfo(user)
-        return DDayInfoResult.Success(dDayInfo)
+        return calculateDDayInfo(user)
     }
 
     /**
-     * 복무 상태 확인 (비즈니스 로직)
+     * 복무 상태 확인
      */
     @Transactional(readOnly = true)
     fun getServiceStatus(githubId: String): ServiceStatus {
         validateGitHubId(githubId)
         
-        val userOpt = userRepository.findByGithubId(githubId.trim())
-        if (userOpt.isEmpty) {
-            return ServiceStatus.UserNotFound
-        }
+        val user = userRepository.findByGithubId(githubId.trim())
+            ?: return ServiceStatus.UserNotFound
 
-        val user = userOpt.get()
-        
         if (user.entryDate == null || user.dischargeDate == null) {
             return ServiceStatus.NotSet
         }
@@ -108,13 +90,9 @@ class MilitaryService(
     fun getServiceProgress(githubId: String): Double {
         validateGitHubId(githubId)
         
-        val userOpt = userRepository.findByGithubId(githubId.trim())
-        if (userOpt.isEmpty) {
-            throw UserNotFoundException(githubId)
-        }
+        val user = userRepository.findByGithubId(githubId.trim())
+            ?: throw UserNotFoundException(githubId)
 
-        val user = userOpt.get()
-        
         if (user.entryDate == null || user.dischargeDate == null) {
             throw ServiceDateNotSetException()
         }
