@@ -32,20 +32,8 @@ class LoginController(
     companion object {
         private const val ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
         private const val MEMBER_INFO_URL = "https://api.github.com/user"
-        private const val GITHUB_AUTH_URL = "https://github.com/login/oauth/authorize"
     }
 
-    @GetMapping("/login")
-    fun login(): ApiResponse<Map<String, String>> {
-        val authUrl = "$GITHUB_AUTH_URL?client_id=$clientId&scope=read:user,user:email"
-
-        val response = mapOf(
-            "authUrl" to authUrl,
-            "message" to "GitHub 로그인을 위해 위 URL로 리다이렉트하세요"
-        )
-
-        return ApiResponse.success(response)
-    }
 
     @GetMapping("/callback")
     fun handleCallback(
