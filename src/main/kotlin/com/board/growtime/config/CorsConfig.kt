@@ -1,5 +1,6 @@
 package com.board.growtime.config
 
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.web.cors.CorsConfiguration
@@ -9,11 +10,21 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 
 @Configuration
-class CorsConfig : WebMvcConfigurer {
+class CorsConfig(
+    @Value("\${app.cors.allowed-origins:http://localhost:3000,http://localhost:5173}")
+    private val allowedOrigins: String
+) : WebMvcConfigurer {
+
+    private fun configuredOrigins(): Array<String> =
+        allowedOrigins
+            .split(",")
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .toTypedArray()
 
     override fun addCorsMappings(registry: CorsRegistry) {
         registry.addMapping("/**")
-            .allowedOriginPatterns("http://localhost:3000")
+            .allowedOriginPatterns(*configuredOrigins())
             .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
             .allowedHeaders("*")
             .allowCredentials(true)
@@ -23,7 +34,7 @@ class CorsConfig : WebMvcConfigurer {
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
         val configuration = CorsConfiguration().apply {
-            addAllowedOriginPattern("http://localhost:3000")
+            configuredOrigins().forEach { addAllowedOriginPattern(it) }
             addAllowedMethod("*")
             addAllowedHeader("*")
             allowCredentials = true

@@ -2,9 +2,9 @@ spring:
     application:
         name: growtime
     datasource:
-        url: jdbc:postgresql://localhost:5432/growtime
-        username: postgres
-        password: qwer1234!!
+        url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/growtime}
+        username: ${SPRING_DATASOURCE_USERNAME:postgres}
+        password: ${SPRING_DATASOURCE_PASSWORD:qwer1234!!}
         driver-class-name: org.postgresql.Driver
     jpa:
         hibernate:
@@ -25,11 +25,15 @@ spring:
             fail-on-unknown-properties: false
 
 server:
-    port: 8196
+    port: ${PORT:8196}
 
 github:
-    clientId: ${GITHUB_CLIENT_ID:Ov23linOWcipGKRtP0eD}
-    clientSecret: ${GITHUB_CLIENT_SECRET:7bc045e2274fa6cde9735328abd0f278c1c04ff2}
+    clientId: ${GITHUB_CLIENT_ID:}
+    clientSecret: ${GITHUB_CLIENT_SECRET:}
+
+app:
+    cors:
+        allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
 
 logging:
     level:

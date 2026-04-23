@@ -59,8 +59,8 @@ EXPOSE 8196
 ENTRYPOINT ["java", \
     "-Djava.security.egd=file:/dev/./urandom", \
     "-Dspring.profiles.active=docker", \
-    "-Xms512m", \
-    "-Xmx1024m", \
+    "-Xms128m", \
+    "-Xmx384m", \
     "-XX:+UseContainerSupport", \
     "-XX:MaxRAMPercentage=75.0", \
     "-jar", \

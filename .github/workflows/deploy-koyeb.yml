@@ -1,0 +1,47 @@
+name: Deploy Backend to Koyeb
+
+on:
+    push:
+        branches:
+            - master
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: koyeb-backend-production
+    cancel-in-progress: true
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup Java
+              uses: actions/setup-java@v4
+              with:
+                  distribution: temurin
+                  java-version: 17
+
+            - name: Setup Gradle
+              uses: gradle/actions/setup-gradle@v4
+
+            - name: Build
+              run: ./gradlew clean build -x test
+
+    deploy:
+        runs-on: ubuntu-latest
+        needs: build
+
+        steps:
+            - name: Install Koyeb CLI
+              uses: koyeb-community/koyeb-actions@v2
+              with:
+                  api_token: ${{ secrets.KOYEB_API_TOKEN }}
+
+            - name: Redeploy Koyeb service
+              run: koyeb services redeploy "${{ secrets.KOYEB_SERVICE }}"
