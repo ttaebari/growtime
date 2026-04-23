@@ -1,4 +1,4 @@
-name: Deploy Backend to Koyeb
+name: Deploy Backend to Render
 
 on:
     push:
@@ -10,7 +10,7 @@ permissions:
     contents: read
 
 concurrency:
-    group: koyeb-backend-production
+    group: render-backend-production
     cancel-in-progress: true
 
 jobs:
@@ -38,10 +38,13 @@ jobs:
         needs: build
 
         steps:
-            - name: Install Koyeb CLI
-              uses: koyeb-community/koyeb-actions@v2
-              with:
-                  api_token: ${{ secrets.KOYEB_API_TOKEN }}
+            - name: Trigger Render deploy hook
+              env:
+                  RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+              run: |
+                  if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+                    echo "Missing RENDER_DEPLOY_HOOK_URL secret"
+                    exit 1
+                  fi
 
-            - name: Redeploy Koyeb service
-              run: koyeb services redeploy "${{ secrets.KOYEB_SERVICE }}"
+                  curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"

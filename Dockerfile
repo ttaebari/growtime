@@ -50,7 +50,7 @@ USER growtime
 
 # 헬스체크 추가
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8196/actuator/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider "http://localhost:${PORT:-8196}/actuator/health" || exit 1
 
 # 포트 노출
 EXPOSE 8196
