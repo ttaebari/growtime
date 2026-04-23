@@ -52,11 +52,3 @@ class ServiceDateNotSetException : BusinessException(
     errorCode = "SERVICE_DATE_NOT_SET",
     message = "복무 날짜가 설정되지 않았습니다"
 )
-
-/**
- * 검증 관련 예외
- */
-class ValidationException(message: String) : BusinessException(
-    errorCode = "VALIDATION_ERROR",
-    message = message
-)

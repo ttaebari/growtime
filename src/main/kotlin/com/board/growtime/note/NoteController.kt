@@ -2,7 +2,6 @@ package com.board.growtime.note
 
 import com.board.growtime.common.response.ApiResponse
 import com.board.growtime.note.dto.*
-import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
 import org.springframework.web.bind.annotation.*
 
@@ -11,8 +10,6 @@ import org.springframework.web.bind.annotation.*
 class NoteController(
     private val noteService: NoteService
 ) {
-    private val log = LoggerFactory.getLogger(NoteController::class.java)
-
     /**
      * 회고 작성
      */
@@ -96,4 +93,4 @@ class NoteController(
         val result = noteService.getNoteCount(githubId)
         return ApiResponse.success(result)
     }
-} 
+}

@@ -57,21 +57,6 @@ class NoteService(
     }
 
     /**
-     * 회고 목록 조회
-     */
-    @Transactional(readOnly = true)
-    fun getNotes(githubId: String): List<NoteInfo> {
-        validateGitHubId(githubId)
-        
-        val user = userRepository.findByGithubId(githubId.trim())
-            ?: throw UserNotFoundException(githubId)
-        
-        val notes = noteRepository.findByUserOrderByCreatedAtDesc(user)
-        
-        return notes.toNoteInfoList()
-    }
-
-    /**
      * 회고 페이징 조회
      */
     @Transactional(readOnly = true)

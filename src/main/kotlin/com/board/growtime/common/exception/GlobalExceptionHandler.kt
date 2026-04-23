@@ -1,7 +1,6 @@
 package com.board.growtime.common.exception
 
 import com.board.growtime.common.response.ApiResponse
-import com.board.growtime.common.exception.BusinessException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -20,8 +19,7 @@ class GlobalExceptionHandler {
         val status = when (e.errorCode) {
             "USER_NOT_FOUND", "NOTE_NOT_FOUND" -> HttpStatus.NOT_FOUND
             "INVALID_USER_DATA", "INVALID_NOTE_DATA", 
-            "INVALID_SERVICE_DATE", "SERVICE_DATE_NOT_SET", 
-            "VALIDATION_ERROR" -> HttpStatus.BAD_REQUEST
+            "INVALID_SERVICE_DATE", "SERVICE_DATE_NOT_SET" -> HttpStatus.BAD_REQUEST
             else -> HttpStatus.INTERNAL_SERVER_ERROR
         }
 

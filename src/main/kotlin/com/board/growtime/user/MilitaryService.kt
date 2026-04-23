@@ -5,7 +5,6 @@ import com.board.growtime.common.exception.ServiceDateNotSetException
 import com.board.growtime.common.exception.UserNotFoundException
 import com.board.growtime.common.util.DateUtils
 import com.board.growtime.common.util.ValidationUtils
-import com.board.growtime.enums.ServiceStatus
 import com.board.growtime.user.dto.DDayInfo
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -67,40 +66,6 @@ class MilitaryService(
     }
 
     /**
-     * 복무 상태 확인
-     */
-    @Transactional(readOnly = true)
-    fun getServiceStatus(githubId: String): ServiceStatus {
-        validateGitHubId(githubId)
-        
-        val user = userRepository.findByGithubId(githubId.trim())
-            ?: return ServiceStatus.UserNotFound
-
-        if (user.entryDate == null || user.dischargeDate == null) {
-            return ServiceStatus.NotSet
-        }
-
-        return determineServiceStatus(user.entryDate!!, user.dischargeDate!!)
-    }
-
-    /**
-     * 복무 진행률 조회
-     */
-    @Transactional(readOnly = true)
-    fun getServiceProgress(githubId: String): Double {
-        validateGitHubId(githubId)
-        
-        val user = userRepository.findByGithubId(githubId.trim())
-            ?: throw UserNotFoundException(githubId)
-
-        if (user.entryDate == null || user.dischargeDate == null) {
-            throw ServiceDateNotSetException()
-        }
-
-        return DateUtils.calculateServiceProgress(user.entryDate!!, user.dischargeDate!!)
-    }
-
-    /**
      * GitHub ID 검증
      */
     private fun validateGitHubId(githubId: String) {
@@ -145,18 +110,5 @@ class MilitaryService(
             dischargeDate = dischargeDate,
             progressPercentage = DateUtils.calculateServiceProgress(entryDate, dischargeDate)
         )
-    }
-
-    /**
-     * 복무 상태 결정 (비즈니스 로직)
-     */
-    private fun determineServiceStatus(entryDate: LocalDate, dischargeDate: LocalDate): ServiceStatus {
-        val today = LocalDate.now()
-        
-        return when {
-            today.isBefore(entryDate) -> ServiceStatus.BeforeEntry
-            today.isAfter(dischargeDate) -> ServiceStatus.Discharged
-            else -> ServiceStatus.Serving
-        }
     }
 }

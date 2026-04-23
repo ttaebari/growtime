@@ -42,50 +42,6 @@ class UserService(
     }
 
     /**
-     * 사용자 존재 여부 확인
-     */
-    @Transactional(readOnly = true)
-    fun existsUser(githubId: String): Boolean {
-        validateGitHubId(githubId)
-        return userRepository.existsByGithubId(githubId.trim())
-    }
-
-    /**
-     * 사용자 기본 정보 업데이트
-     */
-    @Transactional
-    fun updateUserBasicInfo(
-        githubId: String,
-        name: String?,
-        avatarUrl: String?,
-        htmlUrl: String?,
-        location: String?
-    ): UserInfo {
-        validateGitHubId(githubId)
-        
-        val user = userRepository.findByGithubId(githubId.trim())
-            ?: throw UserNotFoundException(githubId)
-        
-        if (!ValidationUtils.isBlank(name)) {
-            user.name = name?.trim()
-        }
-        if (!ValidationUtils.isBlank(avatarUrl) && ValidationUtils.isValidUrl(avatarUrl)) {
-            user.avatarUrl = avatarUrl?.trim()
-        }
-        if (!ValidationUtils.isBlank(htmlUrl) && ValidationUtils.isValidUrl(htmlUrl)) {
-            user.htmlUrl = htmlUrl?.trim()
-        }
-        if (!ValidationUtils.isBlank(location)) {
-            user.location = location?.trim()
-        }
-
-        val updatedUser = userRepository.save(user)
-        log.info("사용자 기본 정보 업데이트 완료: {}", githubId)
-        
-        return updatedUser.toUserInfo()
-    }
-
-    /**
      * GitHub ID 검증
      */
     private fun validateGitHubId(githubId: String) {
@@ -93,4 +49,4 @@ class UserService(
             throw InvalidUserDataException("올바른 GitHub ID 형식이 아닙니다: $githubId")
         }
     }
-} 
+}
