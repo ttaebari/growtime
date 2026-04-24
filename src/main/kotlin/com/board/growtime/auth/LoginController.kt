@@ -1,4 +1,4 @@
-package com.board.growtime.core
+package com.board.growtime.auth
 
 import com.board.growtime.auth.dto.GitHubUserInfo
 import com.board.growtime.auth.dto.LoginResponse
@@ -11,99 +11,88 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
+import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.client.RestClientException
 import org.springframework.web.client.RestTemplate
 
 @RestController
 class LoginController(
     private val restTemplate: RestTemplate,
-    private val gitHubUserService: GitHubUserService
+    private val gitHubUserService: GitHubUserService,
+    private val jwtService: JwtService,
+    @Value("\${github.clientId}")
+    private val clientId: String,
+    @Value("\${github.clientSecret}")
+    private val clientSecret: String
 ) {
     private val log = LoggerFactory.getLogger(LoginController::class.java)
-
-    @Value("\${github.clientId}")
-    private lateinit var clientId: String
-
-    @Value("\${github.clientSecret}")
-    private lateinit var clientSecret: String
 
     companion object {
         private const val ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
         private const val MEMBER_INFO_URL = "https://api.github.com/user"
     }
 
-
     @GetMapping("/callback")
     fun handleCallback(
         @RequestParam(required = false) code: String?,
         @RequestParam(required = false) error: String?
-    ): ApiResponse<LoginResponse> {
-        log.info("GitHub 콜백 호출됨 - code: {}, error: {}", code, error)
-
-        // OAuth 에러 처리
+    ): ResponseEntity<ApiResponse<LoginResponse>> {
         if (error != null) {
-            log.error("GitHub OAuth 에러: {}", error)
-            return ApiResponse.error("OAUTH_ERROR", error)
+            log.warn("GitHub OAuth error: {}", error)
+            return loginError(HttpStatus.BAD_REQUEST, "OAUTH_ERROR", error)
         }
 
         if (code.isNullOrBlank()) {
-            log.error("인증 코드가 없습니다")
-            return ApiResponse.error("NO_AUTH_CODE", "인증 코드가 없습니다")
+            log.warn("GitHub OAuth callback missing code")
+            return loginError(HttpStatus.BAD_REQUEST, "NO_AUTH_CODE", "인증 코드가 없습니다")
         }
 
         try {
-            log.info("액세스 토큰 요청 시작")
-            val accessToken = getAccessToken(code)
-                ?: return ApiResponse.error("NO_TOKEN", "액세스 토큰을 받지 못했습니다")
+            val githubAccessToken = getAccessToken(code)
+                ?: return loginError(HttpStatus.BAD_GATEWAY, "GITHUB_TOKEN_EXCHANGE_FAILED", "GitHub 인증 처리에 실패했습니다")
             
-            log.info("액세스 토큰 획득 성공")
-
-            log.info("사용자 정보 요청 시작")
-            val userInfo = getUserInfo(accessToken)
-                ?: return ApiResponse.error("NO_USER_INFO", "사용자 정보를 받지 못했습니다")
+            val userInfo = getUserInfo(githubAccessToken)
+                ?: return loginError(HttpStatus.BAD_GATEWAY, "GITHUB_USER_INFO_FAILED", "GitHub 사용자 정보를 받지 못했습니다")
             
-            log.info("사용자 정보 획득 성공: {}", userInfo.login)
-
-            // 사용자 정보를 데이터베이스에 저장 또는 업데이트
-            log.info("사용자 정보 저장 시작")
             val savedUser = gitHubUserService.saveOrUpdateUser(
                 userInfo.id.toString(),
                 userInfo.login,
                 userInfo.name,
                 userInfo.avatarUrl,
                 userInfo.htmlUrl,
-                userInfo.location,
-                accessToken
+                userInfo.location
             )
-            log.info("사용자 정보 저장 완료: {}", savedUser.githubId)
+            log.info("GitHub login succeeded: githubId={}, login={}", savedUser.githubId, savedUser.login)
 
+            val appToken = jwtService.createToken(savedUser.githubId, savedUser.login)
             val response = LoginResponse(
-                accessToken = accessToken,
+                accessToken = appToken,
                 refreshToken = null,
                 githubId = savedUser.githubId
             )
-            return ApiResponse.success(response)
+            return ResponseEntity.ok(ApiResponse.success(response))
 
         } catch (e: Exception) {
-            log.error("콜백 처리 중 예외 발생", e)
+            log.error("GitHub OAuth callback processing failed", e)
             throw e // Let GlobalExceptionHandler handle it
         }
     }
 
     private fun getAccessToken(code: String): String? {
         return try {
-            log.info("액세스 토큰 요청 - clientId: {}, code: {}", clientId, code)
-
             val headers = HttpHeaders().apply {
                 set("Accept", "application/json")
+                contentType = MediaType.APPLICATION_JSON
             }
 
             val tokenRequest = OAuthAccessTokenRequest(clientId, clientSecret, code)
             val request = HttpEntity(tokenRequest, headers)
 
-            log.info("GitHub API 호출: {}", ACCESS_TOKEN_URL)
             val response = restTemplate.postForObject(
                 ACCESS_TOKEN_URL,
                 request,
@@ -111,18 +100,17 @@ class LoginController(
             )
 
             if (response?.accessToken != null) {
-                log.info("액세스 토큰 획득 성공")
                 response.accessToken
             } else {
                 if (response != null) {
-                    log.error("액세스 토큰 응답 에러: {}, {}", response.error, response.errorDescription)
+                    log.warn("GitHub token exchange failed: error={}, description={}", response.error, response.errorDescription)
                 } else {
-                    log.error("액세스 토큰 응답이 null입니다")
+                    log.warn("GitHub token exchange returned empty response")
                 }
                 null
             }
-        } catch (e: Exception) {
-            log.error("액세스 토큰 획득 중 에러 발생", e)
+        } catch (e: RestClientException) {
+            log.warn("GitHub token exchange request failed: {}", e.message)
             null
         }
     }
@@ -143,9 +131,19 @@ class LoginController(
             )
 
             response.body
-        } catch (e: Exception) {
-            log.error("사용자 정보 획득 중 에러 발생", e)
+        } catch (e: RestClientException) {
+            log.warn("GitHub user info request failed: {}", e.message)
             null
         }
+    }
+
+    private fun loginError(
+        status: HttpStatus,
+        code: String,
+        message: String
+    ): ResponseEntity<ApiResponse<LoginResponse>> {
+        return ResponseEntity
+            .status(status)
+            .body(ApiResponse.error(code, message))
     }
 }

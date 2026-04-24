@@ -52,7 +52,7 @@ class User(
     }
 
     // 액세스 토큰 업데이트
-    fun updateAccessToken(accessToken: String) {
+    fun updateAccessToken(accessToken: String?) {
         this.accessToken = accessToken
     }
 

@@ -24,7 +24,7 @@ class GitHubUserService(
         avatarUrl: String?,
         htmlUrl: String?,
         location: String?,
-        accessToken: String
+        accessToken: String? = null
     ): User {
         val existingUser = userRepository.findByGithubId(githubId)
         
@@ -44,7 +44,7 @@ class GitHubUserService(
         avatarUrl: String?,
         htmlUrl: String?,
         location: String?,
-        accessToken: String,
+        accessToken: String?,
         login: String
     ): User {
         user.updateUserInfo(name, avatarUrl, htmlUrl, location)
@@ -64,7 +64,7 @@ class GitHubUserService(
         avatarUrl: String?,
         htmlUrl: String?,
         location: String?,
-        accessToken: String
+        accessToken: String?
     ): User {
         val newUser = User(githubId, login, name, avatarUrl, htmlUrl, location, accessToken)
         
