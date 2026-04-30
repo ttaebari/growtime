@@ -38,6 +38,14 @@ app:
         secret: ${APP_JWT_SECRET:growtime-local-development-secret-change-me}
         expiration-seconds: ${APP_JWT_EXPIRATION_SECONDS:86400}
 
+springdoc:
+    api-docs:
+        path: /v3/api-docs
+    swagger-ui:
+        path: /swagger-ui.html
+        operations-sorter: method
+        tags-sorter: alpha
+
 logging:
     level:
         com.board.growtime: DEBUG
