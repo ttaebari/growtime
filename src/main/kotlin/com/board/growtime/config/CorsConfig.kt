@@ -13,23 +13,32 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 
 @Configuration
 class CorsConfig(
-    @Value("\${app.cors.allowed-origins:http://localhost:3000,http://localhost:5173}")
+    @Value("\${app.cors.allowed-origins}")
     private val allowedOrigins: String,
     private val apiAuthenticationInterceptor: ApiAuthenticationInterceptor
 ) : WebMvcConfigurer {
 
-    private fun configuredOrigins(): Array<String> =
-        allowedOrigins
+    private val corsAllowedMethods = arrayOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
+    private val corsAllowedHeaders = arrayOf("Authorization", "Content-Type", "Accept")
+
+    private fun configuredOrigins(): Array<String> {
+        val origins = allowedOrigins
             .split(",")
             .map { it.trim() }
             .filter { it.isNotBlank() }
-            .toTypedArray()
+
+        require(origins.none { it.contains("*") }) {
+            "CORS allowed origins must be exact origins. Wildcard patterns are not allowed."
+        }
+
+        return origins.toTypedArray()
+    }
 
     override fun addCorsMappings(registry: CorsRegistry) {
         registry.addMapping("/**")
-            .allowedOriginPatterns(*configuredOrigins())
-            .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-            .allowedHeaders("*")
+            .allowedOrigins(*configuredOrigins())
+            .allowedMethods(*corsAllowedMethods)
+            .allowedHeaders(*corsAllowedHeaders)
             .allowCredentials(true)
             .maxAge(3600)
     }
@@ -42,9 +51,9 @@ class CorsConfig(
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
         val configuration = CorsConfiguration().apply {
-            configuredOrigins().forEach { addAllowedOriginPattern(it) }
-            addAllowedMethod("*")
-            addAllowedHeader("*")
+            configuredOrigins().forEach { addAllowedOrigin(it) }
+            corsAllowedMethods.forEach { addAllowedMethod(it) }
+            corsAllowedHeaders.forEach { addAllowedHeader(it) }
             allowCredentials = true
         }
         

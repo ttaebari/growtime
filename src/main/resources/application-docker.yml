@@ -26,7 +26,7 @@ github:
 
 app:
     cors:
-        allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+        allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:https://growtime-frontend-nine.vercel.app}
     jwt:
         secret: ${APP_JWT_SECRET}
         expiration-seconds: ${APP_JWT_EXPIRATION_SECONDS:86400}

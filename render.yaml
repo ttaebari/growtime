@@ -27,4 +27,4 @@ services:
           - key: APP_JWT_EXPIRATION_SECONDS
             value: "86400"
           - key: APP_CORS_ALLOWED_ORIGINS
-            value: https://growtime-frontend-nine.vercel.app,http://localhost:3000,http://localhost:5173
+            value: https://growtime-frontend-nine.vercel.app
